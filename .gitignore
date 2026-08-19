@@ -1,0 +1,18 @@
+# editors
+*.swp
+*~
+
+# build
+/build*/
+
+# source
+src/image_modded.h
+
+# tools stuff
+tools/image.h
+tools/prepare_bmp
+tools/image_modded.h
+
+# nvim lsp stuff
+.ccls*
+compile_commands.json

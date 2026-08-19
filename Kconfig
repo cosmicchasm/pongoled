@@ -1,0 +1,9 @@
+source "Kconfig.zephyr"
+
+config OLED_USE_MEMCPY
+	bool "Use memcpy in oled_send_bits"
+	default n
+
+config PONG_DEBUG
+	bool "Debug mode for pong--collision asserts on"
+	default n
