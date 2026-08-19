@@ -9,6 +9,7 @@ project(pong_main)
 
 target_include_directories (app PRIVATE
   src/
+  modules/arcade-drivers/
 )
 
 target_sources(app PRIVATE 
@@ -18,6 +19,6 @@ target_sources(app PRIVATE
 
   # submodule--need these linked with pong and not
   # as separate library (or could we do that)
-  # modules/arcade-drivers/graphics_core.c
-  # modules/arcade-drivers/oled_core.c
+  modules/arcade-drivers/graphics_core.c
+  modules/arcade-drivers/oled_core.c
 )
