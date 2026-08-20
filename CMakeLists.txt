@@ -17,6 +17,7 @@ target_sources(app PRIVATE
   # as separate library (or could we do that)
   modules/arcade-drivers/graphics_core.c
   modules/arcade-drivers/oled_core.c
+  modules/arcade-drivers/graphics_common.c
 
   # src
   src/main.c
