@@ -8,14 +8,14 @@ project(pong_main)
 # Add include directory
 
 target_include_directories (app PRIVATE
-  src/
+  inc/
   modules/arcade-drivers/
 )
 
 target_sources(app PRIVATE 
   # src
   src/main.c
-  src/pong_oled.c
+  src/pong_core.c
 
   # submodule--need these linked with pong and not
   # as separate library (or could we do that)

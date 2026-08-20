@@ -7,3 +7,7 @@ config OLED_USE_MEMCPY
 config PONG_DEBUG
 	bool "Debug mode for pong--collision asserts on"
 	default n
+
+config PONG_TEST_PAGE
+  bool "Link test page routine into image"
+  default y

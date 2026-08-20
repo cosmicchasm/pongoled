@@ -43,12 +43,6 @@ typedef struct {
 	ball_dir_t dir;
 } ball_t;
 
-typedef struct {
-	player_t pa;
-	player_t pb;
-	ball_t b;
-} arena_t;
-
 /* Function declarations */
 void pong_test_page(void);
 int pong_main(void);

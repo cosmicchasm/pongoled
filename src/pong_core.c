@@ -35,12 +35,6 @@ static player_t p1;
 static player_t p2;
 static ball_t		ball;
 
-static arena_t arena = {
-	.pa = p1,
-	.pb = p2,
-	.b  = ball,
-};
-
 /* Helper functions */
 // Checker function to ensure a non-faulty collision
 static void pong_check_col(bool xl, bool xr, bool yb, bool yt, ball_dir_t dir) {
@@ -84,7 +78,7 @@ static void pong_check_col(bool xl, bool xr, bool yb, bool yt, ball_dir_t dir) {
 
 // Replica of the gross function from earlier
 static ball_dir_t update_ball_dir(ball_t *const b) {
-	ball_t ret = b->dir;
+	ball_dir_t ret = b->dir;
 
 	// determine if a collision has happened
 	bool xr_col = (b->xp == ARENA_RIG), xl_col = (b->xp == ARENA_LEF);
