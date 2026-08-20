@@ -24,9 +24,7 @@ LOG_MODULE_REGISTER(pong_main);
 #define PONG_ASSERT(x) __ASSERT((x) == true, "pong assert failed at %d", __LINE__)
 
 // For test page
-#ifdef PONG_TEST_PAGE
-static const tp_data[] = {{0,0},{64,32},{127,63},{0,63},{64,32},{127,0}};
-#endif
+static const pos_t tp_data[] = {{0,0},{64,32},{127,63},{0,63},{64,32},{127,0}};
 
 /* Static variables */
 static uint8_t pong_fb[SCREEN_LIMIT_X * SCREEN_LIMIT_Y / SCREEN_DIV];
@@ -38,7 +36,7 @@ static ball_t		ball;
 /* Helper functions */
 // Checker function to ensure a non-faulty collision
 static void pong_check_col(bool xl, bool xr, bool yb, bool yt, ball_dir_t dir) {
-#ifdef PONG_DEBUG
+#if (defined(PONG_DEBUG))
 	// big switch case
 	switch (dir) {
 		case BALL_N:
@@ -84,7 +82,7 @@ static ball_dir_t update_ball_dir(ball_t *const b) {
 	bool xr_col = (b->xp == ARENA_RIG), xl_col = (b->xp == ARENA_LEF);
 	bool yt_col = (b->yp == ARENA_TOP), yb_col = (b->yp == ARENA_BOT);
 
-#ifdef PONG_DEBUG
+#if (defined(PONG_DEBUG))
 	// call checker
 	pong_check_col(xl_col, xr_col, yb_col, yt_col, ret);
 #endif
@@ -136,14 +134,14 @@ static ball_dir_t update_ball_dir(ball_t *const b) {
  * 4. Test writing whole screen, then clearing
  */
 void pong_test_page(void) {
-#ifdef PONG_TEST_PAGE
 	// 1.
+  LOG_INF("sending test 1");
 	for (int i = 0; i < ARRAY_SIZE(tp_data); i++) {
 		// set the bit
 		set_fb_pixel(tp_data[i].x, tp_data[i].y, pong_fb);
 		
 		// send it
-		oled_send_bits(&pong_fb[0], OLED_SCREEN_SIZE, 0);
+		oled_send_bits(&pong_fb[0], OLED_SIZE, 0);
 
 		// delay slightly
 		k_msleep(25);
@@ -155,12 +153,13 @@ void pong_test_page(void) {
 	memset(pong_fb, 0, sizeof(pong_fb));
 
 	// 2. write horizontal lines
+  LOG_INF("sending test 2");
 	for (int y = 0; y < SCREEN_LIMIT_Y; y+=SCREEN_DIV) {
 		for (int x = 0; x < SCREEN_LIMIT_X; x++) {
 			set_fb_pixel(x, y, pong_fb);
 		}
 		// send it
-		oled_send_bits(&pong_fb[0], OLED_SCREEN_SIZE, 0);
+		oled_send_bits(&pong_fb[0], OLED_SIZE, 0);
 	}
 
 	for (int x = 0; x < SCREEN_LIMIT_X; x+=SCREEN_DIV) {
@@ -168,7 +167,7 @@ void pong_test_page(void) {
 			set_fb_pixel(x, y, pong_fb);
 		}
 		// send it
-		oled_send_bits(&pong_fb[0], OLED_SCREEN_SIZE, 0);
+		oled_send_bits(&pong_fb[0], OLED_SIZE, 0);
 	}
 
 	k_msleep(25);
@@ -176,24 +175,26 @@ void pong_test_page(void) {
 	memset(pong_fb, 0, sizeof(pong_fb));
 
 	// 4.
+  LOG_INF("sending test 4");
 	memset(pong_fb, 0XFF, sizeof(pong_fb));
-	oled_send_bits(&pong_fb[0], OLED_SCREEN_SIZE, 0);
+	oled_send_bits(&pong_fb[0], OLED_SIZE, 0);
 	k_msleep(2000);
 
 	memset(pong_fb, 0X00, sizeof(pong_fb));
-	oled_send_bits(&pong_fb[0], OLED_SCREEN_SIZE, 0);
+	oled_send_bits(&pong_fb[0], OLED_SIZE, 0);
 
+  LOG_INF("test page complete");
 	return;
-#endif
 }
 
 // TODO: this should be a thread
 int pong_main(void) {
   // initialization stuff here
-#ifdef PONG_TEST_PAGE
-	test_page();
-#endif
+  LOG_INF("entered pong_main");
+	pong_test_page();
 	
+  LOG_INF("came back from test page");
+
 	while (1) {
 		k_msleep(1000);
 	}

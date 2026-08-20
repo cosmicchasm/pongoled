@@ -11,7 +11,6 @@
 // for generating images
 #include <zephyr/random/random.h>
 
-#include "graphics_common.h"
 #include "pong_core.h"
 
 
