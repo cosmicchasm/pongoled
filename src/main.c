@@ -11,7 +11,7 @@
 // for generating images
 #include <zephyr/random/random.h>
 
-#include "oled_core.h"
+#include "graphics_common.h"
 #include "pong_core.h"
 
 
@@ -46,7 +46,8 @@ int main(void)
 	// no return value since this is purely a visual test
 	k_sleep(K_MSEC(1000));
 
-	test_page();		
+	// branch to pong now
+	pong_main();
 
   while (1) {
     // sleep for some time

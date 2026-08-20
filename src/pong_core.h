@@ -49,4 +49,8 @@ typedef struct {
 	ball_t b;
 } arena_t;
 
+/* Function declarations */
+void pong_test_page(void);
+int pong_main(void);
+
 #endif

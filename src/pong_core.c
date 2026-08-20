@@ -11,17 +11,25 @@
 // Zephyr includes
 #include <zephyr/sys/__assert.h>
 #include <zephyr/logging/log.h>
+#include <zephyr/sys/util.h>
 #include <zephyr/kernel.h>
 
 #include "graphics_common.h"
 #include "pong_core.h"
 
+LOG_MODULE_REGISTER(pong_main);
+
 /* Local macros */
 // Debug
 #define PONG_ASSERT(x) __ASSERT((x) == true, "pong assert failed at %d", __LINE__)
 
+// For test page
+#ifdef PONG_TEST_PAGE
+static const tp_data[] = {{0,0},{64,32},{127,63},{0,63},{64,32},{127,0}};
+#endif
+
 /* Static variables */
-static uint8_t pong_fb[SCREEN_LIMIT_X * SCREEN_LIMIT_Y / 8];
+static uint8_t pong_fb[SCREEN_LIMIT_X * SCREEN_LIMIT_Y / SCREEN_DIV];
 
 static player_t p1;
 static player_t p2;
@@ -124,7 +132,75 @@ static ball_dir_t update_ball_dir(ball_t *const b) {
 	return ret;
 }
 
-// TODO: Work on filling this stuff out
+// test page implementation here
+// maybe we should have this as a lifecycle init type function?
+
+/*
+ * 1. Test writing a set of pixels to screen, then clearing
+ * 2. Test writing a set of horizontal/vertical lines to screen, then clearing
+ * 3. Test writing diagonal lines, then clearing
+ * 4. Test writing whole screen, then clearing
+ */
+void pong_test_page(void) {
+#ifdef PONG_TEST_PAGE
+	// 1.
+	for (int i = 0; i < ARRAY_SIZE(tp_data); i++) {
+		// set the bit
+		set_fb_pixel(tp_data[i].x, tp_data[i].y, pong_fb);
+		
+		// send it
+		oled_send_bits(&pong_fb[0], OLED_SCREEN_SIZE, 0);
+
+		// delay slightly
+		k_msleep(25);
+
+		// clear it
+		clr_fb_pixel(tp_data[i].x, tp_data[i].y, pong_fb);
+	}
+
+	memset(pong_fb, 0, sizeof(pong_fb));
+
+	// 2. write horizontal lines
+	for (int y = 0; y < SCREEN_LIMIT_Y; y+=SCREEN_DIV) {
+		for (int x = 0; x < SCREEN_LIMIT_X; x++) {
+			set_fb_pixel(x, y, pong_fb);
+		}
+		// send it
+		oled_send_bits(&pong_fb[0], OLED_SCREEN_SIZE, 0);
+	}
+
+	for (int x = 0; x < SCREEN_LIMIT_X; x+=SCREEN_DIV) {
+		for (int y = 0; y < SCREEN_LIMIT_Y; y++) {
+			set_fb_pixel(x, y, pong_fb);
+		}
+		// send it
+		oled_send_bits(&pong_fb[0], OLED_SCREEN_SIZE, 0);
+	}
+
+	k_msleep(25);
+
+	memset(pong_fb, 0, sizeof(pong_fb));
+
+	// 4.
+	memset(pong_fb, 0XFF, sizeof(pong_fb));
+	oled_send_bits(&pong_fb[0], OLED_SCREEN_SIZE, 0);
+	k_msleep(2000);
+
+	memset(pong_fb, 0X00, sizeof(pong_fb));
+	oled_send_bits(&pong_fb[0], OLED_SCREEN_SIZE, 0);
+
+	return;
+#endif
+}
+
+// TODO: this should be a thread
 int pong_main(void) {
-  return 0;
+  // initialization stuff here
+#ifdef PONG_TEST_PAGE
+	test_page();
+#endif
+	
+	while (1) {
+		k_msleep(1000);
+	}
 }
