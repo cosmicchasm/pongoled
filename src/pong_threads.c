@@ -27,12 +27,12 @@
 // queue or something to communicate a screen change to the thread
 
 // this would HAVE to yield/sleep when not used
-void screen_thread(void) { }
+void screen_thread(void) { return; }
 
 // this could lowkey (i guess) submit work to a workqueue or something
 // with an interrupt... that'd probably be fine
-void player_thread(void) { }
+void player_thread(void) { return; }
 
 // same with this maybe, but i kinda would want a thread for it if we
 // want a pretty specific speed
-void ball_thread(void) { }
+void ball_thread(void) { return; }

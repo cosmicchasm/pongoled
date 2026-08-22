@@ -31,6 +31,7 @@ target_sources(app PRIVATE
   # src
   src/main.c
   src/pong_core.c
+  src/pong_threads.c
 
   # modules/arcade-drivers/graphics_core.c
   # modules/arcade-drivers/oled_core.c

@@ -17,4 +17,8 @@ void ball_thread(void);
 #define PLAYER_PRIORITY 7
 #define BALL_PRIORITY   7
 
+/* Stack sizes */
+#define SCREEN_STACK_SIZE (1024U)
+#define BALL_STACK_SIZE   (512U)
+
 #endif

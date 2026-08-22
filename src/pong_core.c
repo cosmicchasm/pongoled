@@ -14,14 +14,37 @@
 
 // Zephyr includes
 #include <zephyr/sys/__assert.h>
+#include <zephyr/drivers/gpio.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/sys/util.h>
 #include <zephyr/kernel.h>
 
 #include "graphics_common.h"
+#include "pong_threads.h"
 #include "pong_core.h"
 
 LOG_MODULE_REGISTER(pong_main);
+
+/* Thread definitions here (is this the right place?) */
+K_THREAD_DEFINE(screen_thread_tid, SCREEN_STACK_SIZE, screen_thread,
+    NULL, NULL, NULL, SCREEN_PRIORITY, 0, 0);
+
+K_THREAD_DEFINE(ball_thread_tid, BALL_STACK_SIZE, ball_thread,
+    NULL, NULL, NULL, BALL_PRIORITY, 0, 0);
+
+// Devicetree stuff
+#define PLAY1_UP_BUT DT_ALIAS(sw0)
+#define PLAY1_DN_BUT DT_ALIAS(sw1)
+#define PLAY2_UP_BUT DT_ALIAS(sw2)
+#define PLAY2_DN_BUT DT_ALIAS(sw3)
+
+// assert helper -- assumes CONFIG_ASSERT=y for now
+#define PONG_ASSERT_COLLISION(X) __ASSERT((X) == true, "improper collision")
+
+static const struct gpio_dt_spec p1_up_but = GPIO_DT_SPEC_GET(PLAY1_UP_BUT, gpios);
+static const struct gpio_dt_spec p2_up_but = GPIO_DT_SPEC_GET(PLAY2_UP_BUT, gpios);
+static const struct gpio_dt_spec p1_dn_but = GPIO_DT_SPEC_GET(PLAY1_DN_BUT, gpios);
+static const struct gpio_dt_spec p2_dn_but = GPIO_DT_SPEC_GET(PLAY2_DN_BUT, gpios);
 
 /* Local macros */
 // Debug
@@ -199,7 +222,10 @@ int pong_main(void) {
 	
   LOG_INF("came back from test page");
 
-	while (1) {
-		k_msleep(1000);
-	}
+  // once we're done, we start those threads!
+  k_thread_start(screen_thread_tid);
+  k_thread_start(ball_thread_tid);
+
+  // probably wait here in case we decide to come back for whatever reason
+  while (1) { }
 }
