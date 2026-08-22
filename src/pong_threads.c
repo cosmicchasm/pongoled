@@ -5,8 +5,13 @@
  * including the main thread
  */
 
+/* Stdlib includes */
+#include <stdbool.h>
+
+/* Zephyr includes */
 #include <zephyr/kernel.h>
 
+/* Project includes */
 #include "graphics_common.h"
 #include "pong_threads.h"
 #include "pong_core.h"
@@ -26,13 +31,22 @@
 // Honestly we could make the screen highest priority and use a message
 // queue or something to communicate a screen change to the thread
 
+/* Static variables */
+static bool game_in_progress = false;
+
 // this would HAVE to yield/sleep when not used
-void screen_thread(void) { return; }
+void screen_thread(void) {
+	// if we've paused the game for whatever reason, wait
+}
 
 // this could lowkey (i guess) submit work to a workqueue or something
 // with an interrupt... that'd probably be fine
-void player_thread(void) { return; }
+void player_thread(void) {
+	// if we've paused the game for whatever reason, wait
+}
 
 // same with this maybe, but i kinda would want a thread for it if we
 // want a pretty specific speed
-void ball_thread(void) { return; }
+void ball_thread(void) {
+	// if we've paused the game for whatever reason, wait
+}

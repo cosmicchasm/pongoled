@@ -5,6 +5,7 @@
 #ifndef __PONG_CORE__
 #define __PONG_CORE__
 
+#include <zephyr/drivers/gpio.h>
 #include <stdint.h>
 
 // include new graphics header
@@ -21,6 +22,17 @@
 /* Arena macros */
 #define PADDLE_SIZE (10U) // num of pixels from top to bottom
 
+/* Device macros */
+// Devicetree stuff
+#define PLAY1_UP_BUT DT_ALIAS(sw0)
+#define PLAY1_DN_BUT DT_ALIAS(sw1)
+#define PLAY2_UP_BUT DT_ALIAS(sw2)
+#define PLAY2_DN_BUT DT_ALIAS(sw3)
+
+extern const struct gpio_dt_spec p1_up_but;
+extern const struct gpio_dt_spec p1_dn_but;
+extern const struct gpio_dt_spec p2_up_but;
+extern const struct gpio_dt_spec p2_dn_but;
 
 // TODO #define BALL_SPEED
 
