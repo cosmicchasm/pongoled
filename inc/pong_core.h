@@ -18,6 +18,12 @@
 #define ARENA_BOT (0U)
 #define ARENA_LEF (0U)
 
+/* Arena macros */
+#define PADDLE_SIZE (10U) // num of pixels from top to bottom
+
+
+// TODO #define BALL_SPEED
+
 /* Enums */
 typedef enum {
 	BALL_W = 0,

@@ -1,5 +1,9 @@
 /*
  * Author: Aidan S
+ *
+ * Main source file for pong game
+ *
+ * Thread definitions in pong_threads.c
  */
 
 // Remaking this file since I was very smart and deleted it forever
