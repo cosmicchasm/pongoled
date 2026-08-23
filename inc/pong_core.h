@@ -50,6 +50,7 @@ typedef enum {
 	BALL_SE,
 	BALL_S,
 	BALL_SW,
+	BALL_NODIR,
 	BALL_NUMDIRS
 } ball_dir_t;
 
