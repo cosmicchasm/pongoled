@@ -104,10 +104,8 @@ static ball_dir_t update_ball_dir(ball_t *const b) {
 	bool xr_col = (b->xp == ARENA_RIG), xl_col = (b->xp == ARENA_LEF);
 	bool yt_col = (b->yp == ARENA_TOP), yb_col = (b->yp == ARENA_BOT);
 
-#if (defined(PONG_DEBUG))
 	// call checker
 	pong_check_col(xl_col, xr_col, yb_col, yt_col, ret);
-#endif
 
 	// return the current direction if no collision
 	if (!(xr_col || xl_col || yt_col || yb_col)) {
@@ -218,11 +216,30 @@ int pong_main(void) {
   LOG_INF("came back from test page");
 
 	// initialize gpios here
+	if (!gpio_is_ready_dt(&p1_up_but)) {
+		LOG_ERR("GPIO peripheral not ready");
+	}
 
-	// start threads
+	/* ... for other GPIOs if necessary */
+	gpio_flags_t gpio_cfg = GPIO_INPUT | GPIO_PULL_DOWN;
+	if (0 != gpio_pin_configure_dt(&p1_up_but, gpio_cfg)) {
+		LOG_ERR("p1_up_but cfg fail");
+	}
+	if (0 != gpio_pin_configure_dt(&p2_up_but, gpio_cfg)) {
+		LOG_ERR("p2_up_but cfg fail");
+	}
+	if (0 != gpio_pin_configure_dt(&p1_dn_but, gpio_cfg)) {
+		LOG_ERR("p1_dn_but cfg fail");
+	}
+	if (0 != gpio_pin_configure_dt(&p2_dn_but, gpio_cfg)) {
+		LOG_ERR("p2_dn_but cfg fail");
+	}
+
+	/* any other initializations here */
+
   // once we're done, we start those threads!
   k_thread_start(screen_thread_tid);
-  k_thread_start(ball_thread_tid);
+  k_thread_start(player_thread_tid);
 
   // probably wait here in case we decide to come back for whatever reason
   while (1) { }

@@ -5,8 +5,10 @@
 #ifndef __PONG_CORE__
 #define __PONG_CORE__
 
-#include <zephyr/drivers/gpio.h>
+#include <stdbool.h>
 #include <stdint.h>
+
+#include <zephyr/drivers/gpio.h>
 
 // include new graphics header
 #include "graphics_common.h"
@@ -33,6 +35,8 @@ extern const struct gpio_dt_spec p1_up_but;
 extern const struct gpio_dt_spec p1_dn_but;
 extern const struct gpio_dt_spec p2_up_but;
 extern const struct gpio_dt_spec p2_dn_but;
+
+extern bool game_in_progress;
 
 // TODO #define BALL_SPEED
 

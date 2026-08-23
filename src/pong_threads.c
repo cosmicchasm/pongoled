@@ -32,21 +32,30 @@
 // queue or something to communicate a screen change to the thread
 
 /* Static variables */
-static bool game_in_progress = false;
 
 // this would HAVE to yield/sleep when not used
 void screen_thread(void) {
-	// if we've paused the game for whatever reason, wait
+
+	while (1) {
+		// if we've paused the game for whatever reason, wait
+		// otherwise, wait for message from other threads
+	}
 }
 
 // this could lowkey (i guess) submit work to a workqueue or something
 // with an interrupt... that'd probably be fine
 void player_thread(void) {
-	// if we've paused the game for whatever reason, wait
+
+	while (1) {
+		// if we've paused the game for whatever reason, wait
+	}
 }
 
 // same with this maybe, but i kinda would want a thread for it if we
 // want a pretty specific speed
 void ball_thread(void) {
-	// if we've paused the game for whatever reason, wait
+
+	while (1) {
+		// if we've paused the game for whatever reason, wait
+	}
 }
