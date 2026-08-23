@@ -25,16 +25,6 @@
 
 LOG_MODULE_REGISTER(pong_main);
 
-/* Thread definitions here (is this the right place?) */
-K_THREAD_DEFINE(screen_thread_tid, SCREEN_STACK_SIZE, screen_thread,
-    NULL, NULL, NULL, SCREEN_PRIORITY, 0, 0);
-
-K_THREAD_DEFINE(ball_thread_tid, BALL_STACK_SIZE, ball_thread,
-    NULL, NULL, NULL, BALL_PRIORITY, 0, 0);
-
-K_THREAD_DEFINE(main_thread_tid, MAIN_STACK_SIZE, pong_main,
-		NULL, NULL, NULL, MAIN_PRIORITY, 0, 0);
-
 // assert helper -- assumes CONFIG_ASSERT=y for now
 #define PONG_ASSERT_COLLISION(X) __ASSERT((X) == true, "improper collision")
 
@@ -51,11 +41,27 @@ const struct gpio_dt_spec p2_dn_but = GPIO_DT_SPEC_GET(PLAY2_DN_BUT, gpios);
 static const pos_t tp_data[] = {{0,0},{64,32},{127,63},{0,63},{64,32},{127,0}};
 
 /* Variables */
+static const int fb_sz = SCREEN_LIMIT_X * SCREEN_LIMIT_Y / SCREEN_DIV;
 static PIX_TYPE pong_fb[SCREEN_LIMIT_X * SCREEN_LIMIT_Y / SCREEN_DIV];
+bool game_in_progress = false;
 
-static player_t p1;
-static player_t p2;
-static ball_t		ball;
+// shared with pong_threads.c
+player_t p1;
+player_t p2;
+ball_t	 ball;
+
+/* Thread definitions here (is this the right place?) */
+K_THREAD_DEFINE(player_thread_tid, PLAYER_STACK_SIZE, player_thread,
+    NULL, NULL, NULL, PLAYER_PRIORITY, 0, 0);
+
+K_THREAD_DEFINE(screen_thread_tid, SCREEN_STACK_SIZE, screen_thread,
+    &pong_fb, &fb_sz, NULL, SCREEN_PRIORITY, 0, 0);
+
+K_THREAD_DEFINE(ball_thread_tid, BALL_STACK_SIZE, ball_thread,
+    NULL, NULL, NULL, BALL_PRIORITY, 0, 0);
+
+K_THREAD_DEFINE(main_thread_tid, MAIN_STACK_SIZE, pong_main,
+		NULL, NULL, NULL, MAIN_PRIORITY, 0, 0);
 
 /* Helper functions */
 // Checker function to ensure a non-faulty collision
@@ -99,7 +105,7 @@ static void pong_check_col(bool xl, bool xr, bool yb, bool yt, ball_dir_t dir) {
 }
 
 // Replica of the gross function from earlier
-static ball_dir_t update_ball_dir(ball_t *const b) {
+ball_dir_t update_ball_dir(ball_t *const b) {
 	ball_dir_t ret = b->dir;
 
 	// determine if a collision with a wall has happened
@@ -251,7 +257,7 @@ int pong_main(void) {
 
   // once we're done, we start those threads!
   k_thread_start(screen_thread_tid);
-  // k_thread_start(player_thread_tid);
+  k_thread_start(player_thread_tid);
 
   // probably wait here in case we decide to come back for whatever reason
   while (1) { }

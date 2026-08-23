@@ -21,8 +21,20 @@
 #define ARENA_BOT (0U)
 #define ARENA_LEF (0U)
 
+#define BALL_C (0U) // ball change
+#define PLA1_U (1U)	// player 1 up
+#define PLA2_U (2U)	// player 2 up
+#define PLA1_D (3U)	// player 1 down
+#define PLA2_D (4U)	// player 2 down
+#define P_SCOR (5U) // score event--clear and reset
+
+// old ball location, written by ball thread
+#define BALL_X_MSK (0XFF000000)
+#define BALL_Y_MSK (0X00FF0000)
+
 /* Arena macros */
-#define PADDLE_SIZE (10U) // num of pixels from top to bottom
+// would like this to be odd for equal top/bottom lengths
+#define PADDLE_SIZE (11U) // num of pixels from top to bottom
 
 /* Device macros */
 // Devicetree stuff
@@ -66,7 +78,13 @@ typedef struct {
 	ball_dir_t dir;
 } ball_t;
 
+/* Extern arena structures */
+extern player_t p1;
+extern player_t p2;
+extern ball_t	 ball;
+
 /* Function declarations */
+ball_dir_t update_ball_dir(ball_t *const b);
 void pong_test_page(void);
 int pong_main(void);
 

@@ -5,8 +5,10 @@
 #ifndef __PONG_THREADS__
 #define __PONG_THREADS__
 
+#include <stdbool.h>
+
 /* Declarations */
-void screen_thread(void);
+void screen_thread(void *a, void *b);
 
 void player_thread(void);
 
@@ -22,5 +24,14 @@ void ball_thread(void);
 #define SCREEN_STACK_SIZE (512U)
 #define BALL_STACK_SIZE   (512U)
 #define MAIN_STACK_SIZE		(512U)
+#define PLAYER_STACK_SIZE (512U)
+
+/* Sleep values */
+#define PLAYER_SLEEP_MS (50U)
+#define PAUSE_SLEEP_MS	(200U)
+#define BALL_SLEEP_MS		(50U)
+
+/* Queue macros */
+#define PONG_NUM_MSGS (10U)
 
 #endif
