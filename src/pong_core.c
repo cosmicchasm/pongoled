@@ -51,7 +51,7 @@ const struct gpio_dt_spec p2_dn_but = GPIO_DT_SPEC_GET(PLAY2_DN_BUT, gpios);
 static const pos_t tp_data[] = {{0,0},{64,32},{127,63},{0,63},{64,32},{127,0}};
 
 /* Variables */
-static uint8_t pong_fb[SCREEN_LIMIT_X * SCREEN_LIMIT_Y / SCREEN_DIV];
+static PIX_TYPE pong_fb[SCREEN_LIMIT_X * SCREEN_LIMIT_Y / SCREEN_DIV];
 
 static player_t p1;
 static player_t p2;
@@ -173,7 +173,7 @@ void pong_test_page(void) {
 		set_fb_pixel(tp_data[i].x, tp_data[i].y, pong_fb);
 		
 		// send it
-		oled_send_bits(&pong_fb[0], OLED_SIZE, 0);
+		write_display(&pong_fb[0], OLED_SIZE);
 
 		// delay slightly
 		k_msleep(25);
@@ -191,7 +191,7 @@ void pong_test_page(void) {
 			set_fb_pixel(x, y, pong_fb);
 		}
 		// send it
-		oled_send_bits(&pong_fb[0], OLED_SIZE, 0);
+		write_display(&pong_fb[0], OLED_SIZE);
 	}
 
 	for (int x = 0; x < SCREEN_LIMIT_X; x+=SCREEN_DIV) {
@@ -199,7 +199,7 @@ void pong_test_page(void) {
 			set_fb_pixel(x, y, pong_fb);
 		}
 		// send it
-		oled_send_bits(&pong_fb[0], OLED_SIZE, 0);
+		write_display(&pong_fb[0], OLED_SIZE);
 	}
 
 	k_msleep(25);
@@ -209,11 +209,11 @@ void pong_test_page(void) {
 	// 4.
   LOG_INF("sending test 4");
 	memset(pong_fb, 0XFF, sizeof(pong_fb));
-	oled_send_bits(&pong_fb[0], OLED_SIZE, 0);
+	write_display(&pong_fb[0], OLED_SIZE);
 	k_msleep(2000);
 
 	memset(pong_fb, 0X00, sizeof(pong_fb));
-	oled_send_bits(&pong_fb[0], OLED_SIZE, 0);
+	write_display(&pong_fb[0], OLED_SIZE);
 
   LOG_INF("test page complete");
 	return;

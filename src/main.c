@@ -18,9 +18,6 @@
 const struct i2c_dt_spec dev_i2c = I2C_DT_SPEC_GET(DT_NODELABEL(oled_dev));
 const struct i2c_dt_spec *shared_dev = &dev_i2c;
 
-// Frame buffer for the image
-uint8 frame_buffer[OLED_SIZE_W * OLED_SIZE_L / OLED_SCREEN_DIV];
-
 LOG_MODULE_REGISTER(main);
 
 /*
