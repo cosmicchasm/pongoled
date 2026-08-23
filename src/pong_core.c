@@ -1,32 +1,29 @@
 /*
  * Author: Aidan S
  *
- * Main source file for pong game
+ * Helper functions for pong game
+ * Maybe a bit of a misnomer...?
  *
- * Thread definitions in pong_threads.c
+ * Thread definitions (including main) in pong_threads.c
  */
 
 // Remaking this file since I was very smart and deleted it forever
 
 // stdlib includes here
 #include <stdbool.h>
+#include <stdlib.h>
 #include <stdint.h>
 
 // Zephyr includes
-#include <zephyr/sys/__assert.h>
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/sys/util.h>
 #include <zephyr/kernel.h>
 
 #include "graphics_common.h"
-#include "pong_threads.h"
 #include "pong_core.h"
 
 LOG_MODULE_REGISTER(pong_main);
-
-// assert helper -- assumes CONFIG_ASSERT=y for now
-#define PONG_ASSERT_COLLISION(X) __ASSERT((X) == true, "improper collision")
 
 const struct gpio_dt_spec p1_up_but = GPIO_DT_SPEC_GET(PLAY1_UP_BUT, gpios);
 const struct gpio_dt_spec p2_up_but = GPIO_DT_SPEC_GET(PLAY2_UP_BUT, gpios);
@@ -41,27 +38,34 @@ const struct gpio_dt_spec p2_dn_but = GPIO_DT_SPEC_GET(PLAY2_DN_BUT, gpios);
 static const pos_t tp_data[] = {{0,0},{64,32},{127,63},{0,63},{64,32},{127,0}};
 
 /* Variables */
-static const int fb_sz = SCREEN_LIMIT_X * SCREEN_LIMIT_Y / SCREEN_DIV;
-static PIX_TYPE pong_fb[SCREEN_LIMIT_X * SCREEN_LIMIT_Y / SCREEN_DIV];
+static const int fb_sz = SCREEN_SIZE;
+static PIX_TYPE pong_fb[SCREEN_SIZE];
 bool game_in_progress = false;
 
 // shared with pong_threads.c
-player_t p1;
-player_t p2;
-ball_t	 ball;
+static player_t p1;
+static player_t p2;
+static ball_t	 ball;
 
-/* Thread definitions here (is this the right place?) */
-K_THREAD_DEFINE(player_thread_tid, PLAYER_STACK_SIZE, player_thread,
-    NULL, NULL, NULL, PLAYER_PRIORITY, 0, 0);
+struct k_thread player_thread_obj;
+struct k_thread screen_thread_obj;
+struct k_thread ball_thread_obj;
 
-K_THREAD_DEFINE(screen_thread_tid, SCREEN_STACK_SIZE, screen_thread,
-    &pong_fb, &fb_sz, NULL, SCREEN_PRIORITY, 0, 0);
+K_THREAD_STACK_DEFINE(player_stack, PLAYER_STACK_SIZE);
+K_THREAD_STACK_DEFINE(screen_stack, SCREEN_STACK_SIZE);
+K_THREAD_STACK_DEFINE(ball_stack, BALL_STACK_SIZE);
 
-K_THREAD_DEFINE(ball_thread_tid, BALL_STACK_SIZE, ball_thread,
-    NULL, NULL, NULL, BALL_PRIORITY, 0, 0);
+/* Message queue definition */
+// This is what the control threads will use to communicate with
+// the screen
+static char msgq_buf[PONG_NUM_MSGS * sizeof(uint32_t)];
+struct k_msgq pong_msgq;
 
-K_THREAD_DEFINE(main_thread_tid, MAIN_STACK_SIZE, pong_main,
-		NULL, NULL, NULL, MAIN_PRIORITY, 0, 0);
+/* Semaphore definition */
+struct k_sem pong_sem;
+
+/* Event definition */
+struct k_event mode_event;
 
 /* Helper functions */
 // Checker function to ensure a non-faulty collision
@@ -192,16 +196,16 @@ void pong_test_page(void) {
 
 	// 2. write horizontal lines
   LOG_INF("sending test 2");
-	for (int y = 0; y < SCREEN_LIMIT_Y; y+=SCREEN_DIV) {
-		for (int x = 0; x < SCREEN_LIMIT_X; x++) {
+	for (int y = ARENA_BOT; y < ARENA_TOP; y+=SCREEN_DIV) {
+		for (int x = ARENA_LEF; x < ARENA_RIG; x++) {
 			set_fb_pixel(x, y, pong_fb);
 		}
 		// send it
 		write_display(&pong_fb[0], OLED_SIZE);
 	}
 
-	for (int x = 0; x < SCREEN_LIMIT_X; x+=SCREEN_DIV) {
-		for (int y = 0; y < SCREEN_LIMIT_Y; y++) {
+	for (int x = ARENA_LEF; x < ARENA_RIG; x+=SCREEN_DIV) {
+		for (int y = ARENA_BOT; y < ARENA_TOP; y++) {
 			set_fb_pixel(x, y, pong_fb);
 		}
 		// send it
@@ -225,10 +229,299 @@ void pong_test_page(void) {
 	return;
 }
 
-// TODO: this should be a thread probably
-int pong_main(void) {
+/* Thread definitions here */
+
+// Thread 1: screen thread
+// We can sleep this thread until an arena update of some sort occurs
+// We could put this on a work queue instead, although I'd want it
+// serviced a little earlier maybe
+
+/*
+ * ___Highest p__        _____________       ___Lowest p__
+ * |            |        |           |       |           |
+ * |   Screen   | ---->  |  Players  | ----> |    Ball   |
+ * |____________|        |___________|       |___________|
+ */
+
+/* Static procedures */
+static void clr_pong_pdl(bool p1, bool p2, PIX_TYPE *fb) {
+	for (int i = ARENA_BOT; i < ARENA_TOP; i++) {
+		if (p1) {
+			clr_fb_pixel(ARENA_LEF, i, fb);
+		}
+
+		if (p2) {
+			clr_fb_pixel(ARENA_RIG-1, i, fb);
+		}
+	}
+}
+
+void screen_thread(void *a, void *b) {
+
+	// passed parameters
+	PIX_TYPE *fb = (PIX_TYPE *)a;
+	int sz = *(int *)b;
+
+	// local variables
+	uint32_t rcv_msg;
+	int8_t ball_x = ball.xp, ball_y = ball.yp;
+  bool do_write = false;
+
+	// forever loop
+	while (1) {
+		// if we've paused the game for whatever reason, wait
+    // other threads use semaphores but this doesn't... this ok?
+
+    int ret = k_sem_take(&pong_sem, K_NO_WAIT);
+
+    LOG_INF("screen_thread took semaphore");
+		while ((0 == ret) && (0 == k_msgq_get(&pong_msgq, (uint32_t *)&rcv_msg, K_NO_WAIT))) {
+      do_write = true;
+
+      LOG_INF("processing messages");
+			/* process msgs if any */
+			// player handles
+			if ((rcv_msg & BIT(PLA1_U)) || (rcv_msg & BIT(PLA1_D))) {
+				clr_pong_pdl(true, false, fb);
+
+				for (int i = -(PADDLE_SIZE>>1); i < (PADDLE_SIZE>>1); i++) {
+					set_fb_pixel(0, p1.pdl_center - i, fb);
+				}
+			}
+
+			if ((rcv_msg & BIT(PLA2_U)) || (rcv_msg & BIT(PLA2_D))) {
+				clr_pong_pdl(false, true, fb);
+
+				for (int i = -(PADDLE_SIZE>>1); i < (PADDLE_SIZE>>1); i++) {
+					set_fb_pixel(SCREEN_LIMIT_X-1, p1.pdl_center - i, fb);
+				}
+			}
+
+			// ball handles
+			if (rcv_msg & BIT(BALL_C)) {
+				// clear the old ball position from fb
+				clr_fb_pixel(ball_x, ball_y, fb);
+
+				// FIELD_GET -> extracts bitfield from rcv_msg and
+				// shifts down to LSB
+				ball_x = FIELD_GET(BALL_X_MSK, rcv_msg);
+				ball_y = FIELD_GET(BALL_Y_MSK, rcv_msg);
+
+				// modify ball position here and write to screen
+				set_fb_pixel(ball_x, ball_y, fb);
+			}
+		}
+
+		/* write the updated frame buffer to the display */
+    if (do_write) {
+      if (0 != write_display(fb, sz)) {
+        // do something here
+      }
+      do_write = false;
+    }
+
+    // send event now
+    if (rcv_msg & BIT(P_SCOR)) {
+      k_event_set(&mode_event, 0X1);
+    }
+    k_sem_give(&pong_sem);
+
+    LOG_INF("screen_thread released semaphore");
+		k_yield();
+	}
+}
+
+// this could lowkey (i guess) submit work to a workqueue or something
+// with an interrupt... that'd probably be fine
+// params: a -> pointer to player 1 struct
+// 				 b -> pointer to player 2 struct
+void player_thread(void) {
+
+	uint16_t *cen_p1 = &p1.pdl_center;
+	uint16_t *cen_p2 = &p2.pdl_center;
+
+	// forever loop
+	while (1) {
+    LOG_INF("player");
+		uint32_t p_msg = 0;
+
+		// if we've paused the game for whatever reason, wait
+		if (0 != k_sem_take(&pong_sem, K_FOREVER)) {
+			// there are a couple of ways to do this (like using an interrupt)
+			// but i'd (for now) like to keep this to a thread
+
+      // give the semaphore back
+      k_sem_give(&pong_sem);
+
+      LOG_INF("player_thread released semaphore");
+      LOG_INF("reading inputs");
+
+			// handle--we give precedence to the up button
+			if (1 == gpio_pin_get_dt(&p1_up_but)) {
+				uint16_t t = *cen_p1;
+				if (t < (SCREEN_LIMIT_Y-(PADDLE_SIZE>>1))) {
+					// modify struct
+					*cen_p1 = t+1;
+
+					// pack msg
+					p_msg |= BIT(PLA1_U);
+				}
+			} else if (1 == gpio_pin_get_dt(&p1_dn_but)) {
+				uint16_t t = *cen_p1;
+
+				if (t > (PADDLE_SIZE>>1)) {
+					*cen_p1 = t-1;
+					p_msg |= BIT(PLA1_D);
+				}
+			}
+
+			if (1 == gpio_pin_get_dt(&p2_up_but)) {
+				uint16_t t = *cen_p2;
+				if (t < (SCREEN_LIMIT_Y-(PADDLE_SIZE>>1))) {
+					*cen_p2 = t+1;
+					p_msg |= BIT(PLA2_U);
+				}
+			} else if (1 == gpio_pin_get_dt(&p2_dn_but)) {
+				uint16_t t = *cen_p2;
+				if (t > (PADDLE_SIZE>>1)) {
+					*cen_p2 = t-1;
+					p_msg |= BIT(PLA2_D);
+				}
+			}
+
+			// send msgs here, if any
+			if (0 != p_msg) {
+				while (0 != k_msgq_put(&pong_msgq, (const void *)&p_msg, K_NO_WAIT)) { }
+			}
+
+			// sleep afterwards
+			k_msleep(PLAYER_SLEEP_MS);
+      LOG_INF("player_thread sleeping");
+		} else {
+			// k_msleep(PAUSE_SLEEP_MS);
+      LOG_INF("player_thread couldn't take semaphore");
+		}
+	}
+}
+
+// same with this maybe, but i kinda would want a thread for it if we
+// want a pretty specific speed
+void ball_thread(void) {
+	uint32_t b_msg;
+
+  k_tid_t curr = k_current_get();
+
+	while (1) {
+		// if we've paused the game for whatever reason, wait
+
+    LOG_INF("ball");
+		if (0 != k_sem_take(&pong_sem, K_FOREVER)) {
+      // release semaphore (for other threads to run)
+      k_sem_give(&pong_sem);
+
+      LOG_INF("ball_thread released semaphore");
+
+      LOG_INF("updating ball direction");
+
+			// clear message
+			b_msg = 0;
+
+			// call update_dir here
+			ball_dir_t new_dir = update_ball_dir(&ball);
+
+			// modify ball position
+			switch (new_dir) {
+				case BALL_W:
+					ball.xp -= 1;
+					break;
+				case BALL_NW:
+					ball.xp -= 1;
+					ball.yp += 1;
+					break;
+				case BALL_N:
+					ball.yp += 1;
+					break;
+				case BALL_NE:
+					ball.xp += 1;
+					ball.yp += 1;
+					break;
+				case BALL_E:
+					ball.xp += 1;
+					break;
+				case BALL_SE:
+					ball.xp += 1;
+					ball.yp -= 1;
+					break;
+				case BALL_S:
+					ball.yp -= 1;
+					break;
+				case BALL_SW:
+					ball.xp -= 1;
+					ball.yp -= 1;
+					break;
+				case BALL_NODIR:
+					// send signal to reset game here
+					b_msg |= P_SCOR;
+					break;
+				default:
+					break;
+			}
+			
+			// insert new position here
+			if (!(b_msg & BIT(P_SCOR))) {
+				b_msg |= FIELD_PREP(BALL_X_MSK, ball.xp);
+				b_msg |= FIELD_PREP(BALL_Y_MSK, ball.yp);
+				b_msg |= BALL_C;
+			}
+
+			// send message here
+			while (0 != k_msgq_put(&pong_msgq, (const void *)&b_msg, K_NO_WAIT)) { }
+
+			// then sleep
+			k_msleep(BALL_SLEEP_MS);
+		} else {
+			// k_msleep(PAUSE_SLEEP_MS);
+		}
+	}
+}
+
+static void pong_initialize_arena(void) {
+  // grab the semaphore for good measure?
+
+  // initialize the variables
+  p1.pdl_center = (ARENA_TOP - ARENA_BOT) >> 1;
+  p2.pdl_center = (ARENA_TOP - ARENA_BOT) >> 1;
+  ball.xp = (ARENA_RIG - ARENA_LEF) >> 1;
+  ball.yp = (ARENA_TOP - ARENA_BOT) >> 1;
+  ball.dir = BALL_W;
+
+  // write to the frame buffer
+  memset(pong_fb, 0, SCREEN_SIZE);
+  for (int i = -(PADDLE_SIZE>>1); i < (PADDLE_SIZE>>1); i++) {
+    // p1
+    set_fb_pixel(ARENA_LEF, p1.pdl_center - i, pong_fb);
+    set_fb_pixel(ARENA_RIG-1, p2.pdl_center - i, pong_fb);
+  }
+
+  // set ball
+  set_fb_pixel(ball.xp, ball.yp, pong_fb);
+
+  // write to screen
+  write_display(pong_fb, SCREEN_SIZE);
+
+  // sleep
+  k_msleep(1000);
+
+  // release the semaphore?
+  return;
+}
+
+void pong_main(void) {
+  game_mode_t pong_mode = WAITING;
+
   // initialization stuff here
   LOG_INF("entered pong_main");
+
 	pong_test_page();
 	
   LOG_INF("came back from test page");
@@ -239,7 +532,7 @@ int pong_main(void) {
 	}
 
 	/* ... for other GPIOs if necessary */
-	gpio_flags_t gpio_cfg = GPIO_INPUT | GPIO_PULL_DOWN;
+	gpio_flags_t gpio_cfg = (GPIO_INPUT);
 	if (0 != gpio_pin_configure_dt(&p1_up_but, gpio_cfg)) {
 		LOG_ERR("p1_up_but cfg fail");
 	}
@@ -255,10 +548,76 @@ int pong_main(void) {
 
 	/* any other initializations here */
 
+	/* start game screen */
+  pong_initialize_arena();
+
+  /* initialize the semaphores here */
+  k_sem_init(&pong_sem, 1, 1);
+  
+	/* initialize the message queue here */
+	k_msgq_init(&pong_msgq, msgq_buf, sizeof(uint32_t), PONG_NUM_MSGS);
+
+  /* initialize event here */
+  k_event_init(&mode_event);
+
+  // create the threads here
+
   // once we're done, we start those threads!
-  k_thread_start(screen_thread_tid);
-  k_thread_start(player_thread_tid);
+  
+  k_tid_t player_tid = k_thread_create(&player_thread_obj, &player_stack, PLAYER_STACK_SIZE,
+                                       player_thread, NULL, NULL, NULL, PLAYER_PRIORITY,
+                                       0, K_NO_WAIT);
+
+  k_tid_t screen_tid = k_thread_create(&screen_thread_obj, &screen_stack, SCREEN_STACK_SIZE,
+                                       screen_thread, (void *)&pong_fb, (void *)fb_sz, NULL,
+                                       SCREEN_PRIORITY, 0, K_NO_WAIT);
+
+  k_tid_t ball_tid = k_thread_create(&ball_thread_obj, &ball_stack, BALL_STACK_SIZE,
+                                     ball_thread, NULL, NULL, NULL, BALL_PRIORITY,
+                                     0, K_NO_WAIT);
+
+  LOG_INF("screen_tid: %p\n", screen_tid);
+  LOG_INF("player_tid: %p\n", player_tid);
+  LOG_INF("ball_tid: %p\n", ball_tid);
+
+  // k_thread_start(ball_tid);
+  // k_thread_start(player_tid);
+  // k_thread_start(screen_tid);
+
+  pong_mode = RUNNING;
+
+  LOG_INF("game started");
 
   // probably wait here in case we decide to come back for whatever reason
-  while (1) { }
+  while (1) {
+    LOG_INF("main");
+    switch (pong_mode) {
+      case RUNNING:
+        // wait for the event to switch modes
+        // remove the event when done
+        k_event_wait_safe(&mode_event, 0X1, true, K_FOREVER);
+
+        // grab the semaphore immediately to block the other threads
+        k_sem_take(&pong_sem, K_FOREVER);
+
+        pong_mode = SCORING;
+        break;
+      case SCORING:
+        // reintialize screen
+        pong_initialize_arena();
+
+        // purge the queue
+        k_msgq_purge(&pong_msgq);
+
+        pong_mode = WAITING;
+        break;
+      case WAITING:
+        k_sem_give(&pong_sem);
+        pong_mode = RUNNING;
+        break;
+      default:
+        k_yield();
+        break;
+    }
+  }
 }

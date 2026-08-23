@@ -8,6 +8,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include <zephyr/sys/__assert.h>
 #include <zephyr/drivers/gpio.h>
 
 // include new graphics header
@@ -16,6 +17,9 @@
 // TODO: rewrite everything
 
 /* Macros */
+// assert helper -- assumes CONFIG_ASSERT=y for now
+#define PONG_ASSERT_COLLISION(X) __ASSERT((X) == true, "improper collision")
+
 #define ARENA_TOP SCREEN_LIMIT_Y
 #define ARENA_RIG SCREEN_LIMIT_X
 #define ARENA_BOT (0U)
@@ -42,13 +46,6 @@
 #define PLAY1_DN_BUT DT_ALIAS(sw1)
 #define PLAY2_UP_BUT DT_ALIAS(sw2)
 #define PLAY2_DN_BUT DT_ALIAS(sw3)
-
-extern const struct gpio_dt_spec p1_up_but;
-extern const struct gpio_dt_spec p1_dn_but;
-extern const struct gpio_dt_spec p2_up_but;
-extern const struct gpio_dt_spec p2_dn_but;
-
-extern bool game_in_progress;
 
 // TODO #define BALL_SPEED
 
@@ -78,14 +75,43 @@ typedef struct {
 	ball_dir_t dir;
 } ball_t;
 
-/* Extern arena structures */
-extern player_t p1;
-extern player_t p2;
-extern ball_t	 ball;
-
 /* Function declarations */
 ball_dir_t update_ball_dir(ball_t *const b);
 void pong_test_page(void);
-int pong_main(void);
+
+/* Thread stuff here */
+
+/* Declarations */
+void screen_thread(void *a, void *b);
+void player_thread(void);
+void ball_thread(void);
+void pong_main(void);
+
+/* Priorities */
+#define SCREEN_PRIORITY    4
+#define PLAYER_PRIORITY    3
+#define BALL_PRIORITY      2
+#define PONG_MAIN_PRIORITY 5
+
+/* Stack sizes */
+#define SCREEN_STACK_SIZE     (1024U)
+#define BALL_STACK_SIZE       (1024U)
+#define PONG_MAIN_STACK_SIZE  (1024U)
+#define PLAYER_STACK_SIZE     (1024U)
+
+/* Sleep values */
+#define PLAYER_SLEEP_MS (50U)
+#define PAUSE_SLEEP_MS	(200U)
+#define BALL_SLEEP_MS		(50U)
+
+typedef enum {
+  RUNNING = 0,
+  SCORING,
+  WAITING,
+  NUM_MODES
+} game_mode_t;
+
+/* Queue macros */
+#define PONG_NUM_MSGS (10U)
 
 #endif
