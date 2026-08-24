@@ -82,27 +82,27 @@ void pong_test_page(void);
 /* Thread stuff here */
 
 /* Declarations */
-void screen_thread(void *a, void *b);
+void screen_thread(void *a);
 void player_thread(void);
 void ball_thread(void);
 void pong_main(void);
 
 /* Priorities */
-#define SCREEN_PRIORITY    4
-#define PLAYER_PRIORITY    3
-#define BALL_PRIORITY      2
-#define PONG_MAIN_PRIORITY 5
+#define SCREEN_PRIORITY    10
+#define PLAYER_PRIORITY    12
+#define BALL_PRIORITY      11
+#define PONG_MAIN_PRIORITY 8
 
 /* Stack sizes */
 #define SCREEN_STACK_SIZE     (1024U)
-#define BALL_STACK_SIZE       (1024U)
+#define BALL_STACK_SIZE       (512U)
 #define PONG_MAIN_STACK_SIZE  (1024U)
-#define PLAYER_STACK_SIZE     (1024U)
+#define PLAYER_STACK_SIZE     (512U)
 
 /* Sleep values */
 #define PLAYER_SLEEP_MS (50U)
 #define PAUSE_SLEEP_MS	(200U)
-#define BALL_SLEEP_MS		(50U)
+#define BALL_SLEEP_MS		(10U)
 
 typedef enum {
   RUNNING = 0,
@@ -112,6 +112,6 @@ typedef enum {
 } game_mode_t;
 
 /* Queue macros */
-#define PONG_NUM_MSGS (10U)
+#define PONG_NUM_MSGS (2U)
 
 #endif

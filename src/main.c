@@ -20,8 +20,9 @@ const struct i2c_dt_spec *shared_dev = &dev_i2c;
 
 LOG_MODULE_REGISTER(main);
 
-// K_THREAD_DEFINE(pong_thread_tid, PONG_MAIN_STACK_SIZE, pong_main,
-// 		NULL, NULL, NULL, PONG_MAIN_PRIORITY, 0, 0);
+/* Thread objects */
+static struct k_thread pong_obj;
+K_THREAD_STACK_DEFINE(pong_stack, PONG_MAIN_STACK_SIZE);
 
 int main(void) {
   // send config to device to display ram
@@ -37,12 +38,13 @@ int main(void) {
 	k_sleep(K_MSEC(1000));
 
 	// once we're ready, create pong_main
-	// k_thread_start(pong_thread_tid);
-  pong_main();
+	k_tid_t pong_tid = k_thread_create(&pong_obj, pong_stack, K_THREAD_STACK_SIZEOF(pong_stack),
+                                       pong_main, NULL, NULL, NULL,
+                                       PONG_MAIN_PRIORITY, 0, K_NO_WAIT);
 
   while (1) {
     // sleep for some time
-    k_sleep(K_MSEC(1000));
+    k_sleep(K_MSEC(10000));
   }
   
   return 0;
