@@ -107,6 +107,17 @@ static void pong_check_col(bool xl, bool xr, bool yb, bool yt, ball_dir_t dir) {
 #endif
 }
 
+/* helper function for paddle detection */
+static bool paddle_col_helper() {
+  const bool yp_p1 = (ball.yp<=p1.pdl_center+(PADDLE_SIZE>>1)) &&
+                     (ball.yp>=p1.pdl_center-(PADDLE_SIZE>>1));
+  const bool yp_p2 = (ball.yp<=p2.pdl_center+(PADDLE_SIZE>>1)) &&
+                     (ball.yp>=p2.pdl_center-(PADDLE_SIZE>>1));
+
+  return ((ball.xp==ARENA_LEF+1) && yp_p1) ||
+         ((ball.xp==ARENA_RIG-2) && yp_p2);
+}
+
 // Replica of the gross function from earlier
 ball_dir_t update_ball_dir(ball_t *const b) {
 	ball_dir_t ret = b->dir;
@@ -118,10 +129,10 @@ ball_dir_t update_ball_dir(ball_t *const b) {
 	// call checker
 	pong_check_col(xl_col, xr_col, yb_col, yt_col, ret);
 
-	// TODO: detect a collision with a paddle here
-	bool pad_col = false;
+	// TODO: use semaphore on player here
+	const bool pad_col = paddle_col_helper();
 
-	if (!(xr_col || xl_col || yt_col || yb_col)) {
+	if (!(xr_col || xl_col || yt_col || yb_col || pad_col)) {
 		// return the current direction if no collision
 		return ret;
 	} else if ((xr_col || xl_col) && !pad_col) {
@@ -165,6 +176,8 @@ ball_dir_t update_ball_dir(ball_t *const b) {
 			break;
 	}
 	LOG_INF("ball new dir: %d", ret);
+
+  b->dir = ret;
 
 	return ret;
 }
@@ -281,7 +294,7 @@ void screen_thread(void *a) {
 			// wait until message received
 			while (0 != k_msgq_get(&pong_msgq, &rcv_msg, K_FOREVER)) { }
 
-			LOG_INF("screen_thread received message 0X%X\n", rcv_msg);
+			// LOG_INF("screen_thread received message 0X%X\n", rcv_msg);
 
       do_write = true;
 
@@ -313,7 +326,7 @@ void screen_thread(void *a) {
 				ball_x = FIELD_GET(BALL_X_MSK, rcv_msg);
 				ball_y = FIELD_GET(BALL_Y_MSK, rcv_msg);
 
-				LOG_INF("ball_x: %d, ball_y: %d", ball_x, ball_y);
+				// LOG_INF("ball_x: %d, ball_y: %d", ball_x, ball_y);
 
 				// modify ball position here and write to screen
 				set_fb_pixel(ball_x, ball_y, fb);
@@ -330,7 +343,7 @@ void screen_thread(void *a) {
 
     // send event now
     if (rcv_msg & BIT(P_SCOR)) {
-			LOG_INF("sending message to main thread");
+			// LOG_INF("sending message to main thread");
       k_event_set(&mode_event, 0X1);
     }
 		// LOG_INF("screen wrote message 0X%X", rcv_msg);
@@ -390,14 +403,10 @@ void player_thread(void) {
 				}
 			}
 
-			// send msgs here, if any
 			if (0 != p_msg) {
 				k_msgq_put(&pong_msgq, (const void *)&p_msg, K_NO_WAIT);
-					LOG_INF("player_thread attempting to send message 0X%X\n", p_msg);
 				}
 			}
-			
-			// sleep afterwards
 			k_msleep(PLAYER_SLEEP_MS);
 	}
 }
@@ -464,9 +473,7 @@ void ball_thread(void) {
 				b_msg |= BIT(BALL_C);
 			}
 
-			// send message here
 			int ret = k_msgq_put(&pong_msgq, (const void *)&b_msg, K_NO_WAIT);
-			LOG_INF("ball_thread %s message 0X%X", (ret == 0) ? "sent" : "didn't send", b_msg);
 
 			// then sleep
 			k_msleep(BALL_SLEEP_MS);
@@ -478,7 +485,6 @@ void ball_thread(void) {
 }
 
 static void pong_initialize_arena(void) {
-  // grab the semaphore for good measure?
 	LOG_INF("running pong_initialize_arena");
 
   // initialize the variables
@@ -486,14 +492,14 @@ static void pong_initialize_arena(void) {
   p2.pdl_center = (ARENA_TOP - ARENA_BOT) >> 1;
   ball.xp = (ARENA_RIG - ARENA_LEF) >> 1;
   ball.yp = (ARENA_TOP - ARENA_BOT) >> 1;
-  ball.dir = BALL_SW;
+  ball.dir = BALL_NE;
 
   // write to the frame buffer
   memset(pong_fb, 0, SCREEN_SIZE);
   for (int i = -(PADDLE_SIZE>>1); i < (PADDLE_SIZE>>1); i++) {
     // p1
-    set_fb_pixel(ARENA_LEF, p1.pdl_center + i, pong_fb);
-    set_fb_pixel(ARENA_RIG-1, p2.pdl_center + i, pong_fb);
+    set_fb_pixel(ARENA_LEF, (int)p1.pdl_center + i, pong_fb);
+    set_fb_pixel(ARENA_RIG-1, (int)p2.pdl_center + i, pong_fb);
   }
 
   // set ball
@@ -505,7 +511,6 @@ static void pong_initialize_arena(void) {
   // sleep
   k_msleep(1000);
 
-  // release the semaphore?
   return;
 }
 

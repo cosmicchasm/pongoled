@@ -38,7 +38,7 @@
 
 /* Arena macros */
 // would like this to be odd for equal top/bottom lengths
-#define PADDLE_SIZE (11U) // num of pixels from top to bottom
+#define PADDLE_SIZE (19) // num of pixels from top to bottom
 
 /* Device macros */
 // Devicetree stuff
@@ -102,7 +102,7 @@ void pong_main(void);
 /* Sleep values */
 #define PLAYER_SLEEP_MS (50U)
 #define PAUSE_SLEEP_MS	(200U)
-#define BALL_SLEEP_MS		(10U)
+#define BALL_SLEEP_MS		(50U)
 
 typedef enum {
   RUNNING = 0,
