@@ -29,11 +29,14 @@ int main(void) {
   oled_core_cfg_t my_cfg = {
   	.screen_mod = 0,
   	.mem_mode = HORIZ_MODE,
+    .col_start_end = {0X00, 0X7F},
+    .page_start_end = {0X00, 0X07}
   };
   
   // initializes the config and powers on the device 
 	// in ram mode
-  oled_init(&my_cfg, SET_ADDR_MODE | SET_SCREEN_RAM_MOD);
+  oled_init(&my_cfg, SET_ADDR_MODE | SET_SCREEN_RAM_MOD | SET_COL_START_END |
+      SET_PAGE_START_END);
   
 	k_sleep(K_MSEC(1000));
 
