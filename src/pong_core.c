@@ -7,8 +7,6 @@
  * Thread definitions (including main) in pong_threads.c
  */
 
-// Remaking this file since I was very smart and deleted it forever
-
 // stdlib includes here
 #include <stdbool.h>
 #include <stdlib.h>
@@ -41,7 +39,6 @@ static const pos_t tp_data[] = {{0,0},{64,32},{127,63},{0,63},{64,32},{127,0}};
 static PIX_TYPE pong_fb[SCREEN_SIZE];
 bool game_in_progress = false;
 
-// shared with pong_threads.c
 static player_t p1;
 static player_t p2;
 static ball_t	 ball;
@@ -108,7 +105,7 @@ static void pong_check_col(bool xl, bool xr, bool yb, bool yt, ball_dir_t dir) {
 }
 
 /* helper function for paddle detection */
-static bool paddle_col_helper() {
+static inline bool paddle_col_helper() {
   const bool yp_p1 = (ball.yp<=p1.pdl_center+(PADDLE_SIZE>>1)) &&
                      (ball.yp>=p1.pdl_center-(PADDLE_SIZE>>1));
   const bool yp_p2 = (ball.yp<=p2.pdl_center+(PADDLE_SIZE>>1)) &&
@@ -118,7 +115,6 @@ static bool paddle_col_helper() {
          ((ball.xp==ARENA_RIG-2) && yp_p2);
 }
 
-// Replica of the gross function from earlier
 ball_dir_t update_ball_dir(ball_t *const b) {
 	ball_dir_t ret = b->dir;
 
@@ -137,10 +133,9 @@ ball_dir_t update_ball_dir(ball_t *const b) {
 		return ret;
 	} else if ((xr_col || xl_col) && !pad_col) {
 		// return an invalid direction if collision with RL walls
-		// since the round is over
+		// since the round is now over
 		ret = BALL_NODIR;
 
-		// TODO: signal to main thread to reset game
 		return ret;
 	}
 
@@ -161,16 +156,16 @@ ball_dir_t update_ball_dir(ball_t *const b) {
 			ret = BALL_N;
 			break;
 		case BALL_NW:
-			ret = (yt_col) ? BALL_SW : (xl_col) ? BALL_NE : ret;
+			ret = (yt_col) ? BALL_SW : (pad_col) ? BALL_NE : ret;
 			break;
 		case BALL_NE:
-			ret = (yt_col) ? BALL_SE : (xr_col) ? BALL_NW : ret;
+			ret = (yt_col) ? BALL_SE : (pad_col) ? BALL_NW : ret;
 			break;
 		case BALL_SW:
-			ret = (yb_col) ? BALL_NW : (xl_col) ? BALL_SE : ret;
+			ret = (yb_col) ? BALL_NW : (pad_col) ? BALL_SE : ret;
 			break;
 		case BALL_SE:
-			ret = (yb_col) ? BALL_NE : (xr_col) ? BALL_SW : ret;
+			ret = (yb_col) ? BALL_NE : (pad_col) ? BALL_SW : ret;
 			break;
 		default:
 			break;
@@ -188,8 +183,7 @@ ball_dir_t update_ball_dir(ball_t *const b) {
 /*
  * 1. Test writing a set of pixels to screen, then clearing
  * 2. Test writing a set of horizontal/vertical lines to screen, then clearing
- * 3. Test writing diagonal lines, then clearing
- * 4. Test writing whole screen, then clearing
+ * 3. Test writing whole screen, then clearing
  */
 void pong_test_page(void) {
 	// 1.
@@ -232,7 +226,7 @@ void pong_test_page(void) {
 
 	memset(pong_fb, 0, sizeof(pong_fb));
 
-	// 4.
+	// 3.
   LOG_INF("sending test 4");
 	memset(pong_fb, 0XFF, sizeof(pong_fb));
 	write_display(&pong_fb[0], OLED_SIZE);
@@ -260,13 +254,13 @@ void pong_test_page(void) {
  */
 
 /* Static procedures */
-static void clr_pong_pdl(bool p1, bool p2, PIX_TYPE *fb) {
+// true: clear p1
+// false: clear p2
+static void clr_pong_pdl(bool p, PIX_TYPE *fb) {
 	for (int i = ARENA_BOT; i < ARENA_TOP; i++) {
-		if (p1) {
+		if (p) {
 			clr_fb_pixel(ARENA_LEF, i, fb);
-		}
-
-		if (p2) {
+		} else {
 			clr_fb_pixel(ARENA_RIG-1, i, fb);
 		}
 	}
@@ -279,8 +273,9 @@ void screen_thread(void *a) {
 
 	// local variables
 	uint32_t rcv_msg;
-	uint8_t ball_x = ball.xp, ball_y = ball.yp;
   bool do_write = false;
+
+  uint8_t ball_x = ball.xp, ball_y = ball.yp;
 
 	// forever loop
 	while (1) {
@@ -294,14 +289,12 @@ void screen_thread(void *a) {
 			// wait until message received
 			while (0 != k_msgq_get(&pong_msgq, &rcv_msg, K_FOREVER)) { }
 
-			// LOG_INF("screen_thread received message 0X%X\n", rcv_msg);
-
       do_write = true;
 
 			/* process msgs if any */
 			// player handles
 			if ((rcv_msg & BIT(PLA1_U)) || (rcv_msg & BIT(PLA1_D))) {
-				clr_pong_pdl(true, false, fb);
+				clr_pong_pdl(true, fb);
 
 				for (int i = -(PADDLE_SIZE>>1); i < (PADDLE_SIZE>>1); i++) {
 					set_fb_pixel(0, p1.pdl_center - i, fb);
@@ -309,7 +302,7 @@ void screen_thread(void *a) {
 			}
 
 			if ((rcv_msg & BIT(PLA2_U)) || (rcv_msg & BIT(PLA2_D))) {
-				clr_pong_pdl(false, true, fb);
+				clr_pong_pdl(false, fb);
 
 				for (int i = -(PADDLE_SIZE>>1); i < (PADDLE_SIZE>>1); i++) {
 					set_fb_pixel(SCREEN_LIMIT_X-1, p2.pdl_center - i, fb);
@@ -325,8 +318,6 @@ void screen_thread(void *a) {
 				// shifts down to LSB
 				ball_x = FIELD_GET(BALL_X_MSK, rcv_msg);
 				ball_y = FIELD_GET(BALL_Y_MSK, rcv_msg);
-
-				// LOG_INF("ball_x: %d, ball_y: %d", ball_x, ball_y);
 
 				// modify ball position here and write to screen
 				set_fb_pixel(ball_x, ball_y, fb);
@@ -345,6 +336,11 @@ void screen_thread(void *a) {
     if (rcv_msg & BIT(P_SCOR)) {
 			// LOG_INF("sending message to main thread");
       k_event_set(&mode_event, 0X1);
+
+      ball_x = (ARENA_RIG - ARENA_LEF) >> 1;
+      ball_y = (ARENA_TOP - ARENA_BOT) >> 1;
+
+      k_yield();
     }
 		// LOG_INF("screen wrote message 0X%X", rcv_msg);
 
@@ -417,18 +413,13 @@ void ball_thread(void) {
 	uint32_t b_msg;
 
 	while (1) {
-		// if we've paused the game for whatever reason, wait
-
 		if (game_in_progress) {
-      // release semaphore (for other threads to run)
-
-			// clear message
 			b_msg = 0;
 
-			// call update_dir here
 			ball_dir_t new_dir = update_ball_dir(&ball);
 
 			// modify ball position
+      // TODO: could be cleaner
 			switch (new_dir) {
 				case BALL_W:
 					ball.xp -= 1;
@@ -459,7 +450,7 @@ void ball_thread(void) {
 					ball.yp -= 1;
 					break;
 				case BALL_NODIR:
-					// send signal to reset game here
+					// will send signal to reset game
 					b_msg |= BIT(P_SCOR);
 					break;
 				default:
@@ -555,13 +546,12 @@ void pong_main(void) {
 	/* initialize the message queue here */
 	k_msgq_init(&pong_msgq, msgq_buf, sizeof(uint32_t), PONG_NUM_MSGS);
 
-  /* initialize event here */
+  /* initialize event variable here */
   k_event_init(&mode_event);
 
-  // create the threads here
-
+  // threads start immediately on creation
 	game_in_progress = true;
-  // once we're done, we start those threads!
+
   k_tid_t player_tid = k_thread_create(&player_thread_obj, player_stack, K_THREAD_STACK_SIZEOF(player_stack),
                                        player_thread, NULL, NULL, NULL, PLAYER_PRIORITY,
                                        0, K_FOREVER);
@@ -594,11 +584,12 @@ void pong_main(void) {
         // wait for the event to switch modes
         // remove the event when done
         k_event_wait_safe(&mode_event, 0X1, true, K_FOREVER);
-
 				LOG_INF("message received in main thread");
 
-        // grab the semaphore immediately to block the other threads
+        // grab the semaphore immediately and block the other threads
         k_sem_take(&pong_sem, K_FOREVER);
+        game_in_progress = false;
+
 				LOG_INF("main has semaphore");
 
         pong_mode = SCORING;
