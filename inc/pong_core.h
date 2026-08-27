@@ -8,7 +8,6 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include <zephyr/sys/__assert.h>
 #include <zephyr/drivers/gpio.h>
 
 // include new graphics header
@@ -17,8 +16,6 @@
 // TODO: rewrite everything
 
 /* Macros */
-// assert helper -- assumes CONFIG_ASSERT=y for now
-#define PONG_ASSERT_COLLISION(X) __ASSERT((X) == true, "improper collision")
 
 #define ARENA_TOP SCREEN_LIMIT_Y
 #define ARENA_RIG SCREEN_LIMIT_X

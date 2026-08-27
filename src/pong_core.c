@@ -30,7 +30,9 @@ const struct gpio_dt_spec p2_dn_but = GPIO_DT_SPEC_GET(PLAY2_DN_BUT, gpios);
 
 /* Local macros */
 // Debug
+#if (defined(ASSERT) && ASSERT)
 #define PONG_ASSERT(x) __ASSERT((x) == true, "pong assert failed at %d", __LINE__)
+#endif
 
 // For test page
 static const pos_t tp_data[] = {{0,0},{64,32},{127,63},{0,63},{64,32},{127,0}};
@@ -66,7 +68,7 @@ struct k_event mode_event;
 /* Helper functions */
 // Checker function to ensure a non-faulty collision
 static void pong_check_col(bool xl, bool xr, bool yb, bool yt, ball_dir_t dir) {
-#if (defined(PONG_DEBUG))
+#if (defined(PONG_DEBUG) && defined(ASSERT))
 	// big switch case
 	switch (dir) {
 		case BALL_N:
