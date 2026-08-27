@@ -1,0 +1,3 @@
+[submodule "modules/arcade-drivers"]
+	path = modules/arcade-drivers
+	url = git@github.com:cosmicchasm/arcade-drivers.git

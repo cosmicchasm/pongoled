@@ -11,46 +11,43 @@
 // for generating images
 #include <zephyr/random/random.h>
 
-#include "oled_core.h"
+#include "graphics_common.h"
 #include "pong_core.h"
-
 
 /* Get the i2c device handle */
 const struct i2c_dt_spec dev_i2c = I2C_DT_SPEC_GET(DT_NODELABEL(oled_dev));
 const struct i2c_dt_spec *shared_dev = &dev_i2c;
 
-// Frame buffer for the image
-uint8 frame_buffer[OLED_SIZE_W * OLED_SIZE_L / OLED_SCREEN_DIV];
-
 LOG_MODULE_REGISTER(main);
 
-/*
- * @brief Callback which is called when a write is received from the master.
- * @param config Pointer to the target configuration.
- * @param val The byte received from the master.
- */
+/* Thread objects */
+static struct k_thread pong_obj;
+K_THREAD_STACK_DEFINE(pong_stack, PONG_MAIN_STACK_SIZE);
 
-int main(void)
-{
+int main(void) {
   // send config to device to display ram
   oled_core_cfg_t my_cfg = {
   	.screen_mod = 0,
   	.mem_mode = HORIZ_MODE,
+    .col_start_end = {0X00, 0X7F},
+    .page_start_end = {0X00, 0X07}
   };
   
-  // initializes the config and powers on the device
-  // ram mode
-  oled_init(&my_cfg, SET_ADDR_MODE | SET_SCREEN_RAM_MOD);
+  // initializes the config and powers on the device 
+	// in ram mode
+  oled_init(&my_cfg, SET_ADDR_MODE | SET_SCREEN_RAM_MOD | SET_COL_START_END |
+      SET_PAGE_START_END);
   
-	// run test now that everything's initialized
-	// no return value since this is purely a visual test
 	k_sleep(K_MSEC(1000));
 
-	test_page();		
+	// once we're ready, create pong_main
+	k_tid_t pong_tid = k_thread_create(&pong_obj, pong_stack, K_THREAD_STACK_SIZEOF(pong_stack),
+                                       pong_main, NULL, NULL, NULL,
+                                       PONG_MAIN_PRIORITY, 0, K_NO_WAIT);
 
   while (1) {
     // sleep for some time
-    k_sleep(K_MSEC(1000));
+    k_sleep(K_MSEC(10000));
   }
   
   return 0;

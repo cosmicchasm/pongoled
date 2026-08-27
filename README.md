@@ -1,36 +1,44 @@
 # pongoled
 
 This is a little personal project of mine to reproduce
-the classic Atari game Pong using an nRF52 DK.
+the classic Atari game Pong using an nRF52 DK. For those of you who
+are familiar with how the original Pong game was conceived, you will
+recognize this project as being rather bloated (there was no CPU on
+the original Pong game... this version uses an operating system).
 
-A side goal for this project is to build a small driver
-for the SSD1306 OLED device. I also hope to use this
-repo as a starting point for future game emulations
-(my next will be Asteroids!). Finally, I hope to gain some
-experience with the Zephyr RTOS by completing this project.
+A side goal for this project is/was to build a small driver
+for various display devices. These has its own repository and is
+included as a submodule in this project. Currently **only the SSD1306
+OLED device is supported at the time of the v1.0.0 release.**
 
-(ditching VS Code for nvim, so updates may be sparse for a bit)
+I also hope to use this repo as a starting point for future game emulations
+(my next will be Asteroids!). This is my first time using Zephyr RTOS so
+you may see some code in here that is far from optimal. I will happily take any
+form of constructive criticism from the more experienced!
 
-### Setup
+### Configure
+Currently the easiest configs to change (like speed of the ball or stack sizes)
+are in the form of macros. These are found in `inc/pong_core.h`.
 
-Since I've moved away from using VS Code, we have to do everything
-in the command line. Luckily this isn't *too* complicated, just a bit
-of a pain.
+Of course, more advanced users (especially those familiar with Zephyr projects) may
+be able to configure in more impressive ways.
 
-Once you clone this repository, you're going to want to run the following
-in order:
+### Build
 
-1. Create a Python 3.12 virtual environment with `python3.12 -m venv ./ncs/.venv`
-2. Initialize the virtual environment with `source ./ncs/.venv/bin/activate`
-3. Install west in the virtual environment with `pip install west`
-4. Initialize the ncs west workspace with `west init -m https://github.com/nrfconnect/sdk-nrf --mr main ncs`
-5. Once successful, `cd` into `ncs` and run `west update` (you should be prompted to do this)
-6. This will take some time. Once done, `source zephyr/zephyr-env.sh`
-7. Install zephyr requirements with `pip install -r zephyr/scripts/requirements.txt`
-8. Copy `pongoled` into `ncs` (or clone `pongoled` at this point)
-9. **Hopefully this step will work!** Build with `west build -b nrf52dk/nrf52832 -p always pongoled`
+To build Pong for a Nordic Semi discovery kit, I'd recommend you install
+the nRF Connect SDK for your development platform of choice. It's relatively
+easy to do both in VS Code and in the command line (if you follow the instructions
+[here](https://nrfconnectdocs.nordicsemi.com/ncs/latest/nrf/installation/install_ncs.html).
 
-[!NOTE]
-It's probably better to run steps 1-7 before cloning this repository. That leaves you
-with a west workspace you can use whenever you need it. I believe that Zephyr would call
-this a *T2* Zephyr topology!
+1. Clone this repository somewhere on your machine.
+2. Use nRF Connect SDK to build and flash it to your Nordic board of choice.
+    a. This usually involves running `west build ...` and `west flash ...` if using
+    the command line.
+3. If your board doesn't include a Nordic part, I'd recommend you follow
+[these instructions](https://docs.zephyrproject.org/latest/develop/getting_started/index.html)
+to install the Zephyr SDK and build the project (this is a little harder).
+
+### Hardware
+
+As mentioned above, I developed this project on an nRF52 DK from Nordic Semiconductor.
+This board conveniently has female headers that I can connect my SSD1306 screen to.
