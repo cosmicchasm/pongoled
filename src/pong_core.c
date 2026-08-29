@@ -268,7 +268,7 @@ static void clr_pong_pdl(bool p, PIX_TYPE *fb) {
 	}
 }
 
-void screen_thread(void *a) {
+void screen_thread(void *a, void *b, void *c) {
 
 	// passed parameters
 	PIX_TYPE *fb = (PIX_TYPE *)a;
@@ -354,7 +354,7 @@ void screen_thread(void *a) {
 // with an interrupt... that'd probably be fine
 // params: a -> pointer to player 1 struct
 // 				 b -> pointer to player 2 struct
-void player_thread(void) {
+void player_thread(void *a, void *b, void *c) {
 
 	uint16_t *cen_p1 = &p1.pdl_center;
 	uint16_t *cen_p2 = &p2.pdl_center;
@@ -411,7 +411,7 @@ void player_thread(void) {
 
 // same with this maybe, but i kinda would want a thread for it if we
 // want a pretty specific speed
-void ball_thread(void) {
+void ball_thread(void *a, void *b, void *c) {
 	uint32_t b_msg;
 
 	while (1) {
@@ -466,7 +466,7 @@ void ball_thread(void) {
 				b_msg |= BIT(BALL_C);
 			}
 
-			int ret = k_msgq_put(&pong_msgq, (const void *)&b_msg, K_NO_WAIT);
+			k_msgq_put(&pong_msgq, (const void *)&b_msg, K_NO_WAIT);
 
 			// then sleep
 			k_msleep(BALL_SLEEP_MS);
@@ -507,7 +507,7 @@ static void pong_initialize_arena(void) {
   return;
 }
 
-void pong_main(void) {
+void pong_main(void *a, void *b, void *c) {
   game_mode_t pong_mode = WAITING;
 
   // initialization stuff here

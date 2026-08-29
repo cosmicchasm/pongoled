@@ -79,10 +79,10 @@ void pong_test_page(void);
 /* Thread stuff here */
 
 /* Declarations */
-void screen_thread(void *a);
-void player_thread(void);
-void ball_thread(void);
-void pong_main(void);
+void screen_thread(void *a, void *b, void *c);
+void player_thread(void *a, void *b, void *c);
+void ball_thread(void *a, void *b, void *c);
+void pong_main(void *a, void *b, void *c);
 
 /* Priorities */
 #define SCREEN_PRIORITY    10

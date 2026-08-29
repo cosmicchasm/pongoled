@@ -45,6 +45,8 @@ int main(void) {
                                        pong_main, NULL, NULL, NULL,
                                        PONG_MAIN_PRIORITY, 0, K_NO_WAIT);
 
+	LOG_INF("pong_main tid: %p", pong_tid);
+
   while (1) {
     // sleep for some time
     k_sleep(K_MSEC(10000));
